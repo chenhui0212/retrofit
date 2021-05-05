@@ -773,15 +773,22 @@ final class RequestFactory {
           throw parameterError(method, p, "Multiple @Body method annotations found.");
         }
 
-        Converter<?, RequestBody> converter;
+        Converter<?, RequestBody> bodyConverter;
         try {
-          converter = retrofit.requestBodyConverter(type, annotations, methodAnnotations);
+          bodyConverter = retrofit.requestBodyConverter(type, annotations, methodAnnotations);
         } catch (RuntimeException e) {
           // Wide exception range because factories are user code.
           throw parameterError(method, e, p, "Unable to create @Body converter for %s", type);
         }
+        Converter<?, Map<String, String>> headerMapConverter;
+        try {
+          headerMapConverter = retrofit.headerMapConverter(type, annotations);
+        } catch (RuntimeException e) {
+          // Wide exception range because factories are user code.
+          throw parameterError(method, e, p, "Unable to create header map converter for %s", type);
+        }
         gotBody = true;
-        return new ParameterHandler.Body<>(method, p, converter);
+        return new ParameterHandler.Body(method, p, bodyConverter, headerMapConverter);
 
       } else if (annotation instanceof Tag) {
         validateResolvableType(p, type);

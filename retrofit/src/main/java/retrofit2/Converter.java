@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.Map;
 import javax.annotation.Nullable;
 import okhttp3.RequestBody;
 import okhttp3.ResponseBody;
@@ -65,6 +66,16 @@ public interface Converter<F, T> {
         Annotation[] parameterAnnotations,
         Annotation[] methodAnnotations,
         Retrofit retrofit) {
+      return null;
+    }
+
+    /**
+     * Returns a {@link Converter} for converting {@code type} to an HTTP request header map, or null
+     * if {@code type} cannot be handled by this factory. This is used to create converters for types
+     * specified by {@link Body @Body} values.
+     */
+    public @Nullable Converter<?, Map<String, String>> headerMapConverter(
+        Type type, Annotation[] annotations, Retrofit retrofit) {
       return null;
     }
 

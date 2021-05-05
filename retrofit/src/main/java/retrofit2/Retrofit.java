@@ -385,6 +385,25 @@ public final class Retrofit {
   }
 
   /**
+   * Returns a {@link Converter} for {@code type} to {@link Map} from the available
+   * {@linkplain #converterFactories() factories}.
+   */
+  public @Nullable <T> Converter<T, Map<String, String>> headerMapConverter(Type type, Annotation[] annotations) {
+    Objects.requireNonNull(type, "type == null");
+    Objects.requireNonNull(annotations, "annotations == null");
+
+    for (Converter.Factory converterFactory : converterFactories) {
+      Converter<?, Map<String, String>> converter =
+          converterFactory.headerMapConverter(type, annotations, this);
+      if (converter != null) {
+        //noinspection unchecked
+        return (Converter<T, Map<String, String>>) converter;
+      }
+    }
+    return null;
+  }
+
+  /**
    * Returns a {@link Converter} for {@code type} to {@link String} from the available {@linkplain
    * #converterFactories() factories}.
    */

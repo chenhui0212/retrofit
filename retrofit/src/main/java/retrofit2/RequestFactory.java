@@ -346,6 +346,7 @@ final class RequestFactory {
               return null;
             }
           } catch (NoClassDefFoundError ignored) {
+              // Ignored
           }
         }
         throw parameterError(method, p, "No Retrofit annotation found.");

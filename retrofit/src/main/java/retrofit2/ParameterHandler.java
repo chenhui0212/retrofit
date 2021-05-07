@@ -325,6 +325,56 @@ abstract class ParameterHandler<T> {
     }
   }
 
+  static final class FieldBody<T> extends ParameterHandler<T> {
+    private final Method method;
+    private final int p;
+    private final Converter<T, Map<String, String>> fieldMapConverter;
+    private @Nullable final Converter<T, Map<String, String>> headerMapConverter;
+    private final boolean encoded;
+
+    FieldBody(
+        Method method, int p, Converter<T, Map<String, String>> fieldMapConverter,
+        @Nullable Converter<T, Map<String, String>> headerMapConverter, boolean encoded) {
+      this.method = method;
+      this.p = p;
+      this.fieldMapConverter = fieldMapConverter;
+      this.headerMapConverter = headerMapConverter;
+      this.encoded = encoded;
+    }
+
+    @Override
+    void apply(RequestBuilder builder, @Nullable T value) {
+      if (value == null) {
+        throw Utils.parameterError(method, p, "FieldBody parameter value must not be null.");
+      }
+
+      Map<String, String> fieldMap;
+      try {
+        fieldMap = fieldMapConverter.convert(value);
+      } catch (IOException e) {
+        throw Utils.parameterError(method, e, p, "Unable to convert " + value + " to field map.");
+      }
+
+      if (fieldMap != null) {
+        for (Map.Entry<String, String> entry : fieldMap.entrySet()) {
+          String entryKey = entry.getKey();
+          if (entryKey == null) {
+            throw Utils.parameterError(method, p, "Field map contained null key.");
+          }
+          String entryValue = entry.getValue();
+          if (entryValue == null) {
+            throw Utils.parameterError(
+                method, p, "Field map contained null value for key '" + entryKey + "'.");
+          }
+
+          builder.addFormField(entryKey, entryValue, encoded);
+        }
+      }
+
+      convertHeaderMap(builder, value, headerMapConverter, method, p);
+    }
+  }
+
   static final class Part<T> extends ParameterHandler<T> {
     private final Method method;
     private final int p;
@@ -437,28 +487,7 @@ abstract class ParameterHandler<T> {
       }
       builder.setBody(body);
 
-      if (headerMapConverter != null) {
-        Map<String, String> headerMap;
-        try {
-          headerMap = headerMapConverter.convert(value);
-        } catch (IOException e) {
-          throw Utils.parameterError(method, e, p, "Unable to convert " + value + " to header Map");
-        }
-        if (headerMap != null) {
-          for (Map.Entry<String, String> entry : headerMap.entrySet()) {
-            String headerName = entry.getKey();
-            if (headerName == null) {
-              throw Utils.parameterError(method, p, "Header map contained null key.");
-            }
-            String headerValue = entry.getValue();
-            if (headerValue == null) {
-              throw Utils.parameterError(
-                      method, p, "Header map contained null value for key '" + headerName + "'.");
-            }
-            builder.addHeader(headerName, headerValue);
-          }
-        }
-      }
+      convertHeaderMap(builder, value, headerMapConverter, method, p);
     }
   }
 
@@ -472,6 +501,36 @@ abstract class ParameterHandler<T> {
     @Override
     void apply(RequestBuilder builder, @Nullable T value) {
       builder.addTag(cls, value);
+    }
+  }
+
+  static <T> void convertHeaderMap(
+      RequestBuilder builder, T value, @Nullable Converter<T, Map<String, String>> headerMapConverter,
+      Method method, int p) {
+    if (headerMapConverter == null) {
+      return;
+    }
+
+    Map<String, String> headerMap;
+    try {
+      headerMap = headerMapConverter.convert(value);
+    } catch (IOException e) {
+      throw Utils.parameterError(method, e, p, "Unable to convert " + value + " to header map.");
+    }
+
+    if (headerMap != null) {
+      for (Map.Entry<String, String> entry : headerMap.entrySet()) {
+        String headerName = entry.getKey();
+        if (headerName == null) {
+          throw Utils.parameterError(method, p, "Header map contained null key.");
+        }
+        String headerValue = entry.getValue();
+        if (headerValue == null) {
+          throw Utils.parameterError(
+              method, p, "Header map contained null value for key '" + headerName + "'.");
+        }
+        builder.addHeader(headerName, headerValue);
+      }
     }
   }
 }

@@ -385,7 +385,33 @@ public final class Retrofit {
   }
 
   /**
-   * Returns a {@link Converter} for {@code type} to {@link Map} from the available
+   * Returns a {@link Converter} for {@code type} to field {@link Map} from the available
+   * {@linkplain #converterFactories() factories}.
+   */
+  public <T> Converter<T, Map<String, String>> fieldMapConverter(Type type, Annotation[] annotations) {
+    Objects.requireNonNull(type, "type == null");
+    Objects.requireNonNull(annotations, "annotations == null");
+
+    for (Converter.Factory converterFactory : converterFactories) {
+      Converter<?, Map<String, String>> converter =
+          converterFactory.fieldMapConverter(type, annotations, this);
+      if (converter != null) {
+        //noinspection unchecked
+        return (Converter<T, Map<String, String>>) converter;
+      }
+    }
+
+    StringBuilder builder =
+        new StringBuilder("Could not locate field map converter for ").append(type).append(".\n");
+    builder.append("  Tried:");
+    for (Converter.Factory converterFactory : converterFactories) {
+      builder.append("\n   * ").append(converterFactory.getClass().getName());
+    }
+    throw new IllegalArgumentException(builder.toString());
+  }
+
+  /**
+   * Returns a {@link Converter} for {@code type} to header {@link Map} from the available
    * {@linkplain #converterFactories() factories}.
    */
   public @Nullable <T> Converter<T, Map<String, String>> headerMapConverter(Type type, Annotation[] annotations) {

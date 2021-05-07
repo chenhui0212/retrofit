@@ -15,6 +15,7 @@
  */
 package com.example.retrofit;
 
+import com.google.gson.Gson;
 import okhttp3.ResponseBody;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -22,8 +23,6 @@ import okhttp3.mockwebserver.RecordedRequest;
 import retrofit2.Call;
 import retrofit2.Converter;
 import retrofit2.Retrofit;
-import retrofit2.converter.gson.GsonConverterFactory;
-import retrofit2.http.Body;
 import retrofit2.http.FieldBody;
 import retrofit2.http.FormUrlEncoded;
 import retrofit2.http.POST;
@@ -33,29 +32,25 @@ import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
 
-public final class HeaderMapConverter {
+public final class FieldMapConverter {
   /**
-   * A converter which extract specific information from the {@code @Body} params and put it
-   * into the request header.
+   * A converter which convert {@code @FieldBody} params to filed map.
    */
-  static class HeaderMapConverterFactory extends Converter.Factory {
-    @Override
-    public Converter<?, Map<String, String>> headerMapConverter(
-        Type type, Annotation[] annotations, Retrofit retrofit) {
-      if (Base.class.isAssignableFrom((Class<?>) type)) {
-        return value -> {
-          HashMap<String, String> headerMap = new HashMap<>(1);
-          headerMap.put("ID", ((Base) value).getId());
-          return headerMap;
-        };
-      }
-      return null;
-    }
+  static class FieldMapConverterFactory extends Converter.Factory {
+    private final Gson gson = new Gson();
 
     @Override
     public Converter<?, Map<String, String>> fieldMapConverter(
         Type type, Annotation[] annotations, Retrofit retrofit) {
-      return value -> null;
+      return value -> {
+        HashMap<String, String> fieldMap = new HashMap<>();
+        if (Base.class.isAssignableFrom((Class<?>) type)) {
+          fieldMap.put("ID", ((Base) value).getId());
+          fieldMap.put("Body", gson.toJson(value));
+          fieldMap.put("Timestamp", System.currentTimeMillis() + "");
+        }
+        return fieldMap;
+      };
     }
   }
 
@@ -72,50 +67,37 @@ public final class HeaderMapConverter {
   }
 
   static class Repo extends Base {
-    final String owner;
     final String name;
 
-    Repo(String id, String owner, String name) {
+    Repo(String id, String name) {
       super(id);
-      this.owner = owner;
       this.name = name;
     }
   }
 
   interface Service {
-    @POST("/")
-    Call<ResponseBody> bodyHeader(@Body Repo repo);
-
     @FormUrlEncoded
     @POST("/")
-    Call<ResponseBody> fieldBodyHeader(@FieldBody Repo repo);
+    Call<ResponseBody> example(@FieldBody Repo repo);
   }
 
   public static void main(String... args) throws IOException, InterruptedException {
     MockWebServer server = new MockWebServer();
-    server.enqueue(new MockResponse());
     server.enqueue(new MockResponse());
     server.start();
 
     Retrofit retrofit =
         new Retrofit.Builder()
             .baseUrl(server.url("/"))
-            .addConverterFactory(new HeaderMapConverterFactory())
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(new FieldMapConverterFactory())
             .build();
     Service service = retrofit.create(Service.class);
 
-    Repo retrofitRepo = new Repo("1", "square", "retrofit");
+    Repo retrofitRepo = new Repo("1", "retrofit");
 
-    service.bodyHeader(retrofitRepo).execute();
-    RecordedRequest bodyRequest = server.takeRequest();
-    System.out.println("@Body header ID: " + bodyRequest.getHeader("ID"));
-    System.out.println("Request body: " + bodyRequest.getBody());
-
-    service.fieldBodyHeader(retrofitRepo).execute();
-    RecordedRequest fieldBodyRequest = server.takeRequest();
-    System.out.println("@FieldBody header ID: " + fieldBodyRequest.getHeader("ID"));
-    System.out.println("Request body: " + fieldBodyRequest.getBody());
+    service.example(retrofitRepo).execute();
+    RecordedRequest takeRequest = server.takeRequest();
+    System.out.println("Request body: " + takeRequest.getBody());
 
     server.shutdown();
   }

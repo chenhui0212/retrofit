@@ -42,6 +42,7 @@ import retrofit2.http.Body;
 import retrofit2.http.DELETE;
 import retrofit2.http.Field;
 import retrofit2.http.FieldMap;
+import retrofit2.http.FieldBody;
 import retrofit2.http.FormUrlEncoded;
 import retrofit2.http.GET;
 import retrofit2.http.HEAD;
@@ -622,6 +623,32 @@ final class RequestFactory {
         return new ParameterHandler.FieldMap<>(
             method, p, valueConverter, ((FieldMap) annotation).encoded());
 
+      } else if (annotation instanceof FieldBody) {
+        validateResolvableType(p, type);
+        if (!isFormEncoded) {
+          throw parameterError(
+              method, p, "@FieldBody parameters can only be used with form encoding.");
+        }
+
+        Converter<?, Map<String, String>> fieldMapConverter;
+        try {
+          fieldMapConverter = retrofit.fieldMapConverter(type, annotations);
+        } catch (RuntimeException e) {
+          // Wide exception range because factories are user code.
+          throw parameterError(method, e, p, "Unable to create @FieldBody field map converter for %s", type);
+        }
+        Converter<?, Map<String, String>> headerMapConverter;
+        try {
+          headerMapConverter = retrofit.headerMapConverter(type, annotations);
+        } catch (RuntimeException e) {
+          // Wide exception range because factories are user code.
+          throw parameterError(method, e, p, "Unable to create @FieldBody header map converter for %s", type);
+        }
+
+        gotField = true;
+        return new ParameterHandler.FieldBody(
+            method, p, fieldMapConverter, headerMapConverter, ((FieldBody) annotation).encoded());
+
       } else if (annotation instanceof Part) {
         validateResolvableType(p, type);
         if (!isMultipart) {
@@ -785,7 +812,7 @@ final class RequestFactory {
           headerMapConverter = retrofit.headerMapConverter(type, annotations);
         } catch (RuntimeException e) {
           // Wide exception range because factories are user code.
-          throw parameterError(method, e, p, "Unable to create header map converter for %s", type);
+          throw parameterError(method, e, p, "Unable to create @Body header map converter for %s", type);
         }
         gotBody = true;
         return new ParameterHandler.Body(method, p, bodyConverter, headerMapConverter);

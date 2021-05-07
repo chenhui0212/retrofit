@@ -26,6 +26,7 @@ import okhttp3.ResponseBody;
 import retrofit2.http.Body;
 import retrofit2.http.Field;
 import retrofit2.http.FieldMap;
+import retrofit2.http.FieldBody;
 import retrofit2.http.Header;
 import retrofit2.http.HeaderMap;
 import retrofit2.http.Part;
@@ -66,6 +67,16 @@ public interface Converter<F, T> {
         Annotation[] parameterAnnotations,
         Annotation[] methodAnnotations,
         Retrofit retrofit) {
+      return null;
+    }
+
+    /**
+     * Returns a {@link Converter} for converting {@code type} to an field map, or null if {@code type}
+     * cannot be handled by this factory. This is used to create converters for types specified by
+     * {@link FieldBody @FieldBody} values.
+     */
+    public @Nullable Converter<?, Map<String, String>> fieldMapConverter(
+        Type type, Annotation[] annotations, Retrofit retrofit) {
       return null;
     }
 

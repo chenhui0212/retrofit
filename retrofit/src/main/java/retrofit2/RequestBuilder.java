@@ -100,6 +100,19 @@ final class RequestBuilder {
     this.relativeUrl = relativeUrl.toString();
   }
 
+  void setBaseUrl(Object baseUrl) {
+    if (relativeUrl != null) {
+      HttpUrl newBaseUrl = HttpUrl.get(baseUrl.toString());
+      // Do a one-time combination of the built relative URL and the new base URL.
+      urlBuilder = newBaseUrl.newBuilder(relativeUrl);
+      if (urlBuilder == null) {
+        throw new IllegalArgumentException(
+            "Malformed URL. Base: " + newBaseUrl + ", Relative: " + relativeUrl);
+      }
+      relativeUrl = null;
+    }
+  }
+
   void addHeader(String name, String value) {
     if ("Content-Type".equalsIgnoreCase(name)) {
       try {

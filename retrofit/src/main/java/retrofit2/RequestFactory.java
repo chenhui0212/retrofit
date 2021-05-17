@@ -39,6 +39,7 @@ import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.RequestBody;
 import retrofit2.http.Body;
+import retrofit2.http.BaseUrl;
 import retrofit2.http.DELETE;
 import retrofit2.http.Field;
 import retrofit2.http.FieldMap;
@@ -158,6 +159,7 @@ final class RequestFactory {
     boolean gotQueryName;
     boolean gotQueryMap;
     boolean gotUrl;
+    boolean gotBaseUrl;
     @Nullable String httpMethod;
     boolean hasBody;
     boolean isFormEncoded;
@@ -363,6 +365,9 @@ final class RequestFactory {
         if (gotUrl) {
           throw parameterError(method, p, "Multiple @Url method annotations found.");
         }
+        if (gotBaseUrl) {
+          throw parameterError(method, p, "@BaseUrl parameters may not be used with @Url.");
+        }
         if (gotPath) {
           throw parameterError(method, p, "@Path parameters may not be used with @Url.");
         }
@@ -393,6 +398,37 @@ final class RequestFactory {
               "@Url must be okhttp3.HttpUrl, String, java.net.URI, or android.net.Uri type.");
         }
 
+      } else if (annotation instanceof BaseUrl) {
+        validateResolvableType(p, type);
+        if (gotBaseUrl) {
+          throw parameterError(method, p, "Multiple @BaseUrl method annotations found.");
+        }
+        if (gotUrl) {
+          throw parameterError(method, p, "@Url parameters may not be used with @BaseUrl.");
+        }
+        if (gotQuery) {
+          throw parameterError(method, p, "A @BaseUrl parameter must not come after a @Query.");
+        }
+        if (gotQueryName) {
+          throw parameterError(method, p, "A @BaseUrl parameter must not come after a @QueryName.");
+        }
+        if (gotQueryMap) {
+          throw parameterError(method, p, "A @BaseUrl parameter must not come after a @QueryMap.");
+        }
+        gotBaseUrl = true;
+
+        if (type == HttpUrl.class
+            || type == String.class
+            || type == URI.class
+            || (type instanceof Class && "android.net.Uri".equals(((Class<?>) type).getName()))) {
+          return new ParameterHandler.BaseUrl(method, p);
+        } else {
+          throw parameterError(
+              method,
+              p,
+              "@BaseUrl must be okhttp3.HttpUrl, String, java.net.URI, or android.net.Uri type.");
+        }
+
       } else if (annotation instanceof Path) {
         validateResolvableType(p, type);
         if (gotQuery) {
@@ -403,6 +439,9 @@ final class RequestFactory {
         }
         if (gotQueryMap) {
           throw parameterError(method, p, "A @Path parameter must not come after a @QueryMap.");
+        }
+        if (gotBaseUrl) {
+          throw parameterError(method, p, "A @Path parameter must not come after a @BaseUrl.");
         }
         if (gotUrl) {
           throw parameterError(method, p, "@Path parameters may not be used with @Url.");
